@@ -24,6 +24,27 @@ x,y = SpatialCoordinate(mesh)
 V_u = as_vector((1.0,0.0))   # simple motion, possibility to add nonlinearity here
 V_v = as_vector((0.5,0.0))  
 
-F_u = ((u-u_n)/dt * psi *dx) + D_u*dot(grad(u),grad(psi)) * dx + dot(V_u,grad(u)) * psi * dx - (u(1-u)-alpha*u*v) * psi * dx
+F_u = ((u-u_n)/dt * psi *dx) + D_u*dot(grad(u),grad(psi)) * dx + dot(V_u,grad(u)) * psi * dx - (u*(1-u)-alpha*u*v) * psi * dx
 F_v = ((v-v_n)/dt * phi *dx) + D_v*dot(grad(v),grad(phi)) * dx + dot(V_v,grad(v)) * phi * dx - (beta*u*v-gamma*v) * phi * dx
 F = F_u + F_v
+
+bc_u = DirichletBC(W.sub(0),Constant(0.0),"on_boundary")
+bc_v = DirichletBC(W.sub(1),Constant(0.0),"on_boundary")
+bcs = [bc_u,bc_v]
+
+U_n.sub(0).interpolate(0.6 + 0.1*sin(2*pi*x)*sin(2*pi*y))
+U_n.sub(1).interpolate(0.3)
+
+U.assign(U_n)
+
+T = 5.0  # end time
+t = 0.0  # intial time
+
+while t<T:
+    solve(F==0,U,bcs=bcs,solver_parameters={
+        "snes_type": "newtonls",
+        "ksp_type": "gmres",
+        "pc_type":"ilu"
+    })
+    U_n.assign(U)
+    t += float(dt)
