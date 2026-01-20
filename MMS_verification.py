@@ -11,7 +11,7 @@ U_n = Function(W)
 
 # Define trial and test functions
 (u,v) = split(U)
-(u_n,v_n) = split(U_n)
+(u_n,v_n) = split(U_n)  # time n values, i.e. the old values
 (psi,phi) = TestFunctions(W)
 
 # Define Constants
@@ -43,8 +43,12 @@ def rhs_MMS(t):  # FIXME untested
     f_v = (diff(v_exact,t) - D_v*div(grad(v_exact)) + dot(V_v,grad(v_exact)) - (beta*u_exact*v_exact-gamma*v_exact))
     return f_u, f_v
 
+# determine right-hand-side according to option
+# FIXME if then on an option
+#f_u, f_v = rhs_constant(t)
+f_u, f_v = rhs_MMS(t)
+
 # weak form
-f_u, f_v = rhs_constant(t)  # make option?
 F_u = ((u-u_n)/dt * psi *dx) + D_u*dot(grad(u),grad(psi)) * dx + dot(V_u,grad(u)) * psi * dx - (u*(1-u)-alpha*u*v) * psi * dx - f_u*psi*dx
 F_v = ((v-v_n)/dt * phi *dx) + D_v*dot(grad(v),grad(phi)) * dx + dot(V_v,grad(v)) * phi * dx - (beta*u*v-gamma*v) * phi * dx - f_v*phi*dx
 F = F_u + F_v
