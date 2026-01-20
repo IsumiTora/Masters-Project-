@@ -32,17 +32,27 @@ t = Constant(0.0)
 u_exact = sin(pi*x)*sin(pi*y)*exp(-t)
 v_exact = cos(pi*x)*cos(pi*y)*exp(-2*t)
 
-f_u = (diff(u_exact,t) - D_u*div(grad(u_exact)) + dot(V_u,grad(u_exact)) - (u_exact*(1-u_exact)-alpha*u_exact*v_exact))
-f_v = (diff(v_exact,t) - D_v*div(grad(v_exact)) + dot(V_v,grad(v_exact)) - (beta*u_exact*v_exact-gamma*v_exact))
+def rhs_constant(t):
+    f_u = Constant(1.0)
+    f_v = Constant(1.0)
+    return f_u, f_v
+
+def rhs_MMS(t):  # FIXME untested
+    t = variable(t)
+    f_u = (diff(u_exact,t) - D_u*div(grad(u_exact)) + dot(V_u,grad(u_exact)) - (u_exact*(1-u_exact)-alpha*u_exact*v_exact))
+    f_v = (diff(v_exact,t) - D_v*div(grad(v_exact)) + dot(V_v,grad(v_exact)) - (beta*u_exact*v_exact-gamma*v_exact))
+    return f_u, f_v
 
 # weak form
+f_u, f_v = rhs_constant(t)  # make option?
 F_u = ((u-u_n)/dt * psi *dx) + D_u*dot(grad(u),grad(psi)) * dx + dot(V_u,grad(u)) * psi * dx - (u*(1-u)-alpha*u*v) * psi * dx - f_u*psi*dx
-F_v = ((v-v_n)/dt * phi *dx) + D_v*dot(grad(v),grad(phi)) * dx + dot(V_v,grad(v)) * phi * dx - (beta*u*v-gamma*v) * phi * dx - f_v*phi*dy
+F_v = ((v-v_n)/dt * phi *dx) + D_v*dot(grad(v),grad(phi)) * dx + dot(V_v,grad(v)) * phi * dx - (beta*u*v-gamma*v) * phi * dx - f_v*phi*dx
 F = F_u + F_v
 
 # boundary conditions
 bc_u = DirichletBC(W.sub(0),Constant(0.0),"on_boundary")
-bc_v = DirichletBC(W.sub(1),COnstant(0.0),"on_boundary")
+bc_v = DirichletBC(W.sub(1),Constant(0.0),"on_boundary")
+bcs = [bc_u, bc_v]
 U.assign(U_n)
 
 # Time loop - see firedrakeproject.org/demos/burgers.py.html
@@ -58,12 +68,12 @@ while t_init < t_final:
     U_n.assign(U)
     t_init += float(dt)
 
-u_h,v_h = U.split()
+u_h, v_h = U.subfunctions
 u_e = Function(V).interpolate(u_exact) # see firedrakeproject.org/interpolation.html
 v_e = Function(V).interpolate(v_exact)
 error_u = errornorm(u_e,u_h,norm_type="L2")
 error_v = errornorm(v_e,v_h,norm_type="L2")
 
-print("Error in u: "+error_u)
-print("Error in v: "+error_v)
+print(f"Error in u: {error_u}")
+print(f"Error in v: {error_v}")
 
