@@ -30,7 +30,8 @@ V_v = as_vector((-0.5,1.0))
 x, y = SpatialCoordinate(mesh)
 t = Constant(0.0)
 u_exact = sin(pi*x)*sin(pi*y)*exp(-t)
-v_exact = cos(pi*x)*cos(pi*y)*exp(-2*t)
+#v_exact = cos(pi*x)*cos(pi*y)*exp(-2*t)
+v_exact = sin(2*pi*x)*sin(2*pi*y)*exp(-2*t)
 
 def rhs_constant(t):
     f_u = Constant(1.0)
@@ -62,22 +63,31 @@ U.assign(U_n)
 # Time loop - see firedrakeproject.org/demos/burgers.py.html
 t_final = 1.0
 t_init = 0.0
+outfile = VTKFile("mms.pvd")
 while t_init < t_final:
     t.assign(t_init+ float(dt))
+    print(f"solving at t={float(t):.4f} ...")
     solve(F==0, U, bcs=bcs,solver_parameters = {
         "snes_type":"newtonls",
+        "snes_converged_reason":None,
         "ksp_type":"gmres",
+        #"ksp_converged_reason":None,
         "pc_type":"ilu"
     })
     U_n.assign(U)
+    u_h, v_h = U.subfunctions
+    u_h.rename("u_h")
+    v_h.rename("v_h")
+    u_err = Function(V, name="u_error").interpolate(u_h - u_exact)
+    v_err = Function(V, name="v_error").interpolate(v_h - v_exact)
+    outfile.write(u_h, v_h, u_err, v_err)
     t_init += float(dt)
 
-u_h, v_h = U.subfunctions
-u_e = Function(V).interpolate(u_exact) # see firedrakeproject.org/interpolation.html
-v_e = Function(V).interpolate(v_exact)
+# see firedrakeproject.org/interpolation.html
+u_e = Function(V, name="u_exact").interpolate(u_exact)
+v_e = Function(V, name="v_exact").interpolate(v_exact)
 error_u = errornorm(u_e,u_h,norm_type="L2")
 error_v = errornorm(v_e,v_h,norm_type="L2")
 
 print(f"Error in u: {error_u}")
 print(f"Error in v: {error_v}")
-
