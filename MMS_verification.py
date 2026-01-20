@@ -1,6 +1,7 @@
 from firedrake import *
 import numpy as np
 
+# Build mesh see firedrakeproject.org/variational-problems.html
 size = 16
 mesh = UnitSquareMesh(size,size)
 V = FunctionSpace(mesh,"CG",1)
@@ -32,7 +33,7 @@ u_exact = sin(pi*x)*sin(pi*y)*exp(-t)
 v_exact = cos(pi*x)*cos(pi*y)*exp(-2*t)
 
 f_u = (diff(u_exact,t) - D_u*div(grad(u_exact)) + dot(V_u,grad(u_exact)) - (u_exact*(1-u_exact)-alpha*u_exact*v_exact))
-f_v = (diff(v_exact,t) - D_u*div(grad(v_exact)) + dot(V_v,grad(v_exact)) - (beta*u_exact*v_exact-gamma*v_exact))
+f_v = (diff(v_exact,t) - D_v*div(grad(v_exact)) + dot(V_v,grad(v_exact)) - (beta*u_exact*v_exact-gamma*v_exact))
 
 # weak form
 F_u = ((u-u_n)/dt * psi *dx) + D_u*dot(grad(u),grad(psi)) * dx + dot(V_u,grad(u)) * psi * dx - (u*(1-u)-alpha*u*v) * psi * dx - f_u*psi*dx
@@ -44,7 +45,7 @@ bc_u = DirichletBC(W.sub(0),Constant(0.0),"on_boundary")
 bc_v = DirichletBC(W.sub(1),COnstant(0.0),"on_boundary")
 U.assign(U_n)
 
-# Time loop
+# Time loop - see firedrakeproject.org/demos/burgers.py.html
 t_final = 1.0
 t_init = 0.0
 while t_init < t_final:
@@ -58,7 +59,7 @@ while t_init < t_final:
     t_init += float(dt)
 
 u_h,v_h = U.split()
-u_e = Function(V).interpolate(u_exact)
+u_e = Function(V).interpolate(u_exact) # see firedrakeproject.org/interpolation.html
 v_e = Function(V).interpolate(v_exact)
 error_u = errornorm(u_e,u_h,norm_type="L2")
 error_v = errornorm(v_e,v_h,norm_type="L2")
