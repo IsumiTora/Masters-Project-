@@ -61,6 +61,7 @@ for size in mesh_sizes:
         t.assign(t_curr + dt_value)
         solve(F == 0,U,bcs=bcs,solver_parameters={
                 "snes_type": "newtonls",
+                "snes_converged_reason":None,
                 "ksp_type": "gmres",
                 "pc_type": "ilu",
             }
