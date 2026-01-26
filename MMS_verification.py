@@ -2,15 +2,25 @@ from firedrake import *
 import numpy as np
 import matplotlib.pyplot as plt
 
-mesh_sizes = [8, 16, 32, 64]
+# final time
+t_final = 0.1
+
+# method for computing MMS source ... FIXME
+#   I recommend removing the "discrete" way of computing f_u, f_v, and instead
+#   only use the symbolic route.  Note that the discrete way introduces another
+#   discretization error.
+discrete = False
+
+# mesh refinement in space *and time*
+mesh_sizes = [8, 16, 32, 64, 128]
 h_values = [1.0 / size for size in mesh_sizes]
+dt_values = [t_final / size for size in mesh_sizes]
+
 errors_u = []
 errors_v = []
 
-# timestep values
-t_final = 0.1
-
-for size in mesh_sizes:
+for size, h, dt in zip(mesh_sizes, h_values, dt_values):
+    print(f"solving with {size}x{size} mesh (h={h:.4f}) and dt={dt:.4f} ...")
 
     mesh = UnitSquareMesh(size,size)
     V = FunctionSpace(mesh,"CG",1)
@@ -28,7 +38,6 @@ for size in mesh_sizes:
     alpha = Constant(1.0)
     beta = Constant(1.0)
     gamma = Constant(1.0)
-    dt = Constant(0.01)
     V_u = as_vector((1.0, 0.5)) # advective terms
     V_v = as_vector((-0.5, 1.0))
 
@@ -38,11 +47,17 @@ for size in mesh_sizes:
     u_exact = sin(pi*x)*sin(pi*y)*exp(-t)
     v_exact = sin(2*pi*x)*sin(2*pi*y)*exp(-2*t)
 
-    u_exact_n = sin(pi*x)*sin(pi*y)*exp(-(t - dt))
-    v_exact_n = sin(2*pi*x)*sin(2*pi*y)*exp(-2*(t - dt))
+    if discrete:
+        u_exact_n = sin(pi*x)*sin(pi*y)*exp(-(t - dt))
+        v_exact_n = sin(2*pi*x)*sin(2*pi*y)*exp(-2*(t - dt))
 
-    f_u = ((u_exact - u_exact_n)/dt - D_u*div(grad(u_exact)) + dot(V_u, grad(u_exact)) - (u_exact*(1 - u_exact) - alpha*u_exact*v_exact))
-    f_v = ((v_exact - v_exact_n)/dt - D_v*div(grad(v_exact)) + dot(V_v, grad(v_exact)) - (beta*u_exact*v_exact - gamma*v_exact))
+        f_u = (u_exact - u_exact_n)/dt - D_u*div(grad(u_exact)) + dot(V_u, grad(u_exact)) - (u_exact*(1 - u_exact) - alpha*u_exact*v_exact)
+        f_v = (v_exact - v_exact_n)/dt - D_v*div(grad(v_exact)) + dot(V_v, grad(v_exact)) - (beta*u_exact*v_exact - gamma*v_exact)
+    else:
+        t = variable(t)
+        f_u = diff(u_exact, t) - D_u*div(grad(u_exact)) + dot(V_u, grad(u_exact)) - (u_exact*(1 - u_exact) - alpha*u_exact*v_exact)
+        f_v = diff(v_exact, t) - D_v*div(grad(v_exact)) + dot(V_v, grad(v_exact)) - (beta*u_exact*v_exact - gamma*v_exact)
+        t = Constant(t)
 
     # weak forms
     F_u = ((u - u_n)/dt * psi * dx + D_u*dot(grad(u), grad(psi)) * dx + dot(V_u, grad(u)) * psi * dx - (u*(1 - u) - alpha*u*v) * psi * dx - f_u * psi * dx)
@@ -58,17 +73,17 @@ for size in mesh_sizes:
 
     t_curr = 0.0
     while t_curr < t_final - 1e-12:
-        t.assign(t_curr + dt_value)
+        t.assign(t_curr + dt)
         solve(F == 0,U,bcs=bcs,solver_parameters={
                 "snes_type": "newtonls",
                 "snes_converged_reason":None,
                 "ksp_type": "gmres",
                 "pc_type": "ilu",
-            }
+            }, options_prefix=f"t={t_curr + dt:.4f}"
         )
 
         U_n.assign(U)
-        t_curr += dt_value
+        t_curr += dt
 
     u_h, v_h = U.subfunctions
     u_e = Function(V).interpolate(u_exact)
